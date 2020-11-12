@@ -1,6 +1,6 @@
 ### Task Scheduler > Start a program
 ### powershell
-### -Command "& C:\PathToThisScript\Delete-FilesOlderThanX.ps1 -Directory D:\PathDo\FilesToBeDeleted -DaysToKeep 7"
+### -Command "& C:\PathToThisScript\DeleteFilesOlderThanX.ps1 -Directory D:\PathDo\FilesToBeDeleted -DaysToKeep 7"
 
 PARAM (
     [parameter(Mandatory=$true)]
