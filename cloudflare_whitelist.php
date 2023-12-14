@@ -30,180 +30,180 @@ function get_data($url) {
 
 class cloudflare_api
 {
-    // The URL of the API
-    private static $URL = array(
-        'USER' => 'https://www.cloudflare.com/api_json.html',
-        'HOST' => 'https://api.cloudflare.com/host-gw.html'
+  // The URL of the API
+  private static $URL = array(
+    'USER' => 'https://www.cloudflare.com/api_json.html',
+    'HOST' => 'https://api.cloudflare.com/host-gw.html'
+  );
+
+  // Timeout for the API requests in seconds
+  const TIMEOUT = 5;
+
+  // Stores the api key
+  private $token_key;
+  private $host_key;
+
+  // Stores the email login
+  private $email;
+
+  /**
+   * Make a new instance of the API client
+   */
+  public function __construct()
+  {
+    $parameters = func_get_args();
+    switch (func_num_args()) {
+      case 1:
+        // a host API
+        $this->host_key = $parameters[0];
+        break;
+      case 2:
+        // a user request
+        $this->email = $parameters[0];
+        $this->token_key = $parameters[1];
+        break;
+    }
+  }
+
+  public function setEmail($email)
+  {
+    $this->email = $email;
+  }
+
+  public function setToken($token_key)
+  {
+    $this->token_key = $token_key;
+  }
+
+
+  /**
+   * CLIENT API
+   * Section 3
+   * Access
+   */
+
+  /**
+   * 4.7a - Whitelist IPs
+   * You can add an IP address to your whitelist.
+   */
+  public function wl($ip)
+  {
+    $data = array(
+      'a'   => 'wl',
+      'key' => $ip
     );
+    return $this->http_post($data);
+  }
 
-    // Timeout for the API requests in seconds
-    const TIMEOUT = 5;
+  /**
+   * 4.7b - Blacklist IPs
+   * You can add an IP address to your blacklist.
+   */
+  public function ban($ip)
+  {
+    $data = array(
+      'a'   => 'ban',
+      'key' => $ip
+    );
+    return $this->http_post($data);
+  }
 
-    // Stores the api key
-    private $token_key;
-    private $host_key;
+  /**
+   * 4.7c - Unlist IPs
+   * You can remove an IP address from the whitelist and the blacklist.
+   */
+  public function nul($ip)
+  {
+    $data = array(
+      'a'   => 'nul',
+      'key' => $ip
+    );
+    return $this->http_post($data);
+  }
 
-    // Stores the email login
-    private $email;
-
-    /**
-     * Make a new instance of the API client
-     */
-    public function __construct()
-    {
-        $parameters = func_get_args();
-        switch (func_num_args()) {
-            case 1:
-                // a host API
-                $this->host_key  = $parameters[0];
-                break;
-            case 2:
-                // a user request
-                $this->email     = $parameters[0];
-                $this->token_key = $parameters[1];
-                break;
-        }
+  /**
+   * GLOBAL API CALL
+   * HTTP POST a specific task with the supplied data
+   */
+  private function http_post($data, $type = 'USER')
+  {
+    switch ($type) {
+      case 'USER':
+        $data['u']   = $this->email;
+        $data['tkn'] = $this->token_key;
+        break;
+      case 'HOST':
+        $data['host_key'] = $this->host_key;
+        break;
     }
-
-    public function setEmail($email)
-    {
-        $this->email = $email;
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_VERBOSE, 0);
+    curl_setopt($ch, CURLOPT_FORBID_REUSE, true);
+    curl_setopt($ch, CURLOPT_URL, self::$URL[$type]);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_TIMEOUT, self::TIMEOUT);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    $http_result = curl_exec($ch);
+    $error     = curl_error($ch);
+    $http_code   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($http_code != 200) {
+      return array(
+        'error' => $error
+      );
+    } else {
+      $result = json_decode($http_result);
+      echo $result->{'response'}->{'result'}->{'ip'}." - ".ucfirst($result->{'result'})."\n";
     }
-
-    public function setToken($token_key)
-    {
-        $this->token_key = $token_key;
-    }
-
-
-    /**
-     * CLIENT API
-     * Section 3
-     * Access
-     */
-
-    /**
-     * 4.7a - Whitelist IPs
-     * You can add an IP address to your whitelist.
-     */
-    public function wl($ip)
-    {
-        $data = array(
-            'a'   => 'wl',
-            'key' => $ip
-        );
-        return $this->http_post($data);
-    }
-
-    /**
-     * 4.7b - Blacklist IPs
-     * You can add an IP address to your blacklist.
-     */
-    public function ban($ip)
-    {
-        $data = array(
-            'a'   => 'ban',
-            'key' => $ip
-        );
-        return $this->http_post($data);
-    }
-
-    /**
-     * 4.7c - Unlist IPs
-     * You can remove an IP address from the whitelist and the blacklist.
-     */
-    public function nul($ip)
-    {
-        $data = array(
-            'a'   => 'nul',
-            'key' => $ip
-        );
-        return $this->http_post($data);
-    }
-
-    /**
-     * GLOBAL API CALL
-     * HTTP POST a specific task with the supplied data
-     */
-    private function http_post($data, $type = 'USER')
-    {
-        switch ($type) {
-            case 'USER':
-                $data['u']   = $this->email;
-                $data['tkn'] = $this->token_key;
-                break;
-            case 'HOST':
-                $data['host_key'] = $this->host_key;
-                break;
-        }
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_VERBOSE, 0);
-        curl_setopt($ch, CURLOPT_FORBID_REUSE, true);
-        curl_setopt($ch, CURLOPT_URL, self::$URL[$type]);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-        curl_setopt($ch, CURLOPT_TIMEOUT, self::TIMEOUT);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        $http_result = curl_exec($ch);
-        $error       = curl_error($ch);
-        $http_code   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        if ($http_code != 200) {
-            return array(
-                'error' => $error
-            );
-        } else {
-            $result = json_decode($http_result);
-            echo $result->{'response'}->{'result'}->{'ip'}." - ".ucfirst($result->{'result'})."\n";
-        }
-    }
+  }
 }
 
 $valid = array();
 
 // Check if the URL is set in the parameters at the top then retrieve and validate the contents
 if (isset($url)) {
-    $url = get_data($url);
+  $url = get_data($url);
 
-    $comma = strpos($url, ",");
-    $space = strpos($url, " ");
-    $linebreak = strpos($url, "\n");
+  $comma = strpos($url, ",");
+  $space = strpos($url, " ");
+  $linebreak = strpos($url, "\n");
 
-    if ($comma !== false) {
-        $url = explode(",", $url);
-        echo "Comma detected\n";
-    } else if ($space !== false) {
-        $url = explode(" ", $url);
-        echo "Space detected\n";
-    } else if ($linebreak !== false) {
-        $url = explode("\n", $url);
-        echo "Line break detected\n";
-    } else {
-        echo "Can't detect delimiter, is it a space, comma or new line?\n";
+  if ($comma !== false) {
+    $url = explode(",", $url);
+    echo "Comma detected\n";
+  } else if ($space !== false) {
+    $url = explode(" ", $url);
+    echo "Space detected\n";
+  } else if ($linebreak !== false) {
+    $url = explode("\n", $url);
+    echo "Line break detected\n";
+  } else {
+    echo "Can't detect delimiter, is it a space, comma or new line?\n";
+  }
+  if (is_array($url)) {
+    foreach ($url as $contents) {
+      if (filter_var($contents, FILTER_VALIDATE_IP)) {
+        array_push($valid, $contents);
+      } else {
+        echo $contents." is not valid.\n";
+      }
     }
-    if (is_array($url)) {
-        foreach ($url as $contents) {
-            if (filter_var($contents, FILTER_VALIDATE_IP)) {
-                array_push($valid, $contents);
-            } else {
-                echo $contents." is not valid.\n";
-            }
-        }
-    }
+  }
 }
 
 // Check if any IPs are set in the parameters and validate the contents
 if (isset($ips)) {
-    if (is_array($ips)) {
-        foreach ($ips as $contents) {
-            if (filter_var($contents, FILTER_VALIDATE_IP)) {
-                array_push($valid, $contents);
-            } else {
-                echo $contents." is not valid.\n";
-            }
-        }
+  if (is_array($ips)) {
+    foreach ($ips as $contents) {
+      if (filter_var($contents, FILTER_VALIDATE_IP)) {
+        array_push($valid, $contents);
+      } else {
+        echo $contents." is not valid.\n";
+      }
     }
+  }
 }
 
 // What have we got?
@@ -215,46 +215,46 @@ $checkVars = array("Whitelist","Blacklist","Unlist");
 // Check the listing type and get started
 if(in_array($type, $checkVars)){
 
-    // Run the $url IPs first
-    if (isset($url)) {
-        if (is_array($url)) {
-            foreach ($url as $value) {
-                $cf = new cloudflare_api($cfemailaddress, $cfapikey);
-                if($type == "Whitelist") {
-                  $response = $cf->wl($value);
-                } elseif($type == "Blacklist") {
-                  $response = $cf->ban($value);
-                } elseif($type == "Unlist") {
-                  $response = $cf->nul($value);
-                }
-                print_r($response);
-            }
+  // Run the $url IPs first
+  if (isset($url)) {
+    if (is_array($url)) {
+      foreach ($url as $value) {
+        $cf = new cloudflare_api($cfemailaddress, $cfapikey);
+        if($type == "Whitelist") {
+          $response = $cf->wl($value);
+        } elseif($type == "Blacklist") {
+          $response = $cf->ban($value);
+        } elseif($type == "Unlist") {
+          $response = $cf->nul($value);
         }
-    } else {
-        echo "No URL specified, trying IPs\n";
+        print_r($response);
+      }
     }
+  } else {
+    echo "No URL specified, trying IPs\n";
+  }
 
-    // Run the $ips array second
-    if (isset($ips)) {
-        if (is_array($ips)) {
-            foreach ($ips as $value) {
-                $cf = new cloudflare_api($cfemailaddress, $cfapikey);
-                if($type == "Whitelist") {
-                  $response = $cf->wl($value);
-                } elseif($type == "Blacklist") {
-                  $response = $cf->ban($value);
-                } elseif($type == "Unlist") {
-                  $response = $cf->nul($value);
-                }
-                print_r($response);
-            }
+  // Run the $ips array second
+  if (isset($ips)) {
+    if (is_array($ips)) {
+      foreach ($ips as $value) {
+        $cf = new cloudflare_api($cfemailaddress, $cfapikey);
+        if($type == "Whitelist") {
+          $response = $cf->wl($value);
+        } elseif($type == "Blacklist") {
+          $response = $cf->ban($value);
+        } elseif($type == "Unlist") {
+          $response = $cf->nul($value);
         }
-    } else {
-        echo "No manual IPs specified\n";
+        print_r($response);
+      }
     }
+  } else {
+    echo "No manual IPs specified\n";
+  }
 
 } else {
-    echo "Unknown type, please check configuration\n";
+  echo "Unknown type, please check configuration\n";
 }
 
 // Fin
